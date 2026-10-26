@@ -2,7 +2,7 @@
 // @name         Thieves Guild D&D Shop Basket
 // @namespace    https://dayjo.dev/
 // @author       Dayjo
-// @version      2.6
+// @version      2.8
 // @license      MIT
 // @description  Adds an 'Add to Basket' form inside the description panel with weight & Low/Normal/High totals.
 // @match        https://www.thievesguild.cc/shops*
@@ -11,15 +11,16 @@
 // @match        https://thievesguild.cc/equipment*
 // @grant        none
 // ==/UserScript==
-
 (function () {
   'use strict';
 
   const STORAGE_KEY = 'tg_dnd_shop_basket_v2';
   const MAX_COIN_KEY = 'tg_dnd_max_coin';
+  const PRICE_RANGE_KEY = 'tg_dnd_price_range';
 
   let basket = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
   let maxCoin = localStorage.getItem(MAX_COIN_KEY) || 'gp';
+  let priceRange = localStorage.getItem(PRICE_RANGE_KEY) || 'all'; // 'all', 'low', 'medium', 'high'
   let autoDescCounter = 0;
 
   // Convert a price string (e.g., "1 pp", "2 gp", "5 sp", "2 cp") into base Copper Pieces (cp)
@@ -96,6 +97,40 @@
   function formatWeight(lb) {
     const rounded = Math.round(lb * 100) / 100;
     return `${rounded} lb.`;
+  }
+
+  // Build the HTML string for an item's .tg-desc-meta element based on current settings
+  function buildDescMetaHtml(itemName, pricesObj, weightLb) {
+    let priceHtml = '';
+    if (priceRange === 'low') {
+      priceHtml = `Low: <strong>${formatCopper(pricesObj.low)}</strong>`;
+    } else if (priceRange === 'medium') {
+      priceHtml = `Med: <strong>${formatCopper(pricesObj.normal)}</strong>`;
+    } else if (priceRange === 'high') {
+      priceHtml = `High: <strong>${formatCopper(pricesObj.high)}</strong>`;
+    } else {
+      priceHtml = `Low: ${formatCopper(pricesObj.low)} | <strong>Med: ${formatCopper(pricesObj.normal)}</strong> | High: ${formatCopper(pricesObj.high)}`;
+    }
+    return `<strong>${itemName}</strong> — ${priceHtml} (${formatWeight(weightLb)})`;
+  }
+
+  // Re-render all injected description bars on the page when settings change
+  function updateAllDescriptionForms() {
+    const forms = document.querySelectorAll('.tg-desc-form');
+    forms.forEach((formBar) => {
+      const metaEl = formBar.querySelector('.tg-desc-meta');
+      if (!metaEl) return;
+
+      const itemName = formBar.dataset.name || 'Item';
+      const pricesObj = {
+        low: parseFloat(formBar.dataset.low) || 0,
+        normal: parseFloat(formBar.dataset.normal) || 0,
+        high: parseFloat(formBar.dataset.high) || 0
+      };
+      const weightLb = parseFloat(formBar.dataset.weight) || 0;
+
+      metaEl.innerHTML = buildDescMetaHtml(itemName, pricesObj, weightLb);
+    });
   }
 
   function saveBasket() {
@@ -204,7 +239,7 @@
       bottom: 20px;
       right: 20px;
       width: 390px;
-      max-height: 560px;
+      max-height: 580px;
       background: #fdfaf6;
       border: 2px solid #5c4033;
       border-radius: 8px;
@@ -232,11 +267,16 @@
       padding: 6px 12px;
       font-size: 12px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 6px;
       border-bottom: 1px solid #d4c5b3;
     }
-    #tg-max-coin-select {
+    .tg-setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tg-setting-select {
       font-size: 12px;
       padding: 2px 6px;
       border: 1px solid #8b6b4a;
@@ -249,7 +289,7 @@
     #tg-basket-body {
       padding: 8px 12px;
       overflow-y: auto;
-      max-height: 250px;
+      max-height: 240px;
       font-size: 13px;
     }
     .tg-basket-row {
@@ -297,7 +337,7 @@
       font-size: 13px;
       padding: 2px 0;
     }
-    .tg-summary-row.tg-norm-row {
+    .tg-summary-row.tg-highlight-total {
       font-size: 15px;
       font-weight: bold;
       color: #7a2021;
@@ -354,13 +394,24 @@
       <span id="tg-collapse-icon">▼</span>
     </div>
     <div id="tg-basket-settings">
-      <label for="tg-max-coin-select" style="font-weight:bold;color:#5c4033;margin:0;">Max Denomination:</label>
-      <select id="tg-max-coin-select" title="Choose the highest coin type accepted by this town/shop">
-        <option value="gp">Gold (gp, sp, cp) — Default</option>
-        <option value="pp">Platinum (pp, gp, sp, cp)</option>
-        <option value="sp">Silver only (sp, cp)</option>
-        <option value="cp">Copper only (cp)</option>
-      </select>
+      <div class="tg-setting-row">
+        <label for="tg-max-coin-select" style="font-weight:bold;color:#5c4033;margin:0;">Denominations:</label>
+        <select id="tg-max-coin-select" class="tg-setting-select" title="Choose the highest coin type accepted by this town/shop">
+          <option value="gp">Gold (gp, sp, cp) — Default</option>
+          <option value="pp">Platinum (pp, gp, sp, cp)</option>
+          <option value="sp">Silver only (sp, cp)</option>
+          <option value="cp">Copper only (cp)</option>
+        </select>
+      </div>
+      <div class="tg-setting-row">
+        <label for="tg-price-range-select" style="font-weight:bold;color:#5c4033;margin:0;">Price Ranges:</label>
+        <select id="tg-price-range-select" class="tg-setting-select" title="Filter which price tier is displayed in the basket and copied summary">
+          <option value="all">All (default)</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium (Normal)</option>
+          <option value="high">High</option>
+        </select>
+      </div>
     </div>
     <div id="tg-basket-body"></div>
     <div id="tg-basket-footer">
@@ -368,15 +419,15 @@
         <span>⚖️ Carry Weight:</span>
         <span id="tg-total-weight">0 lb.</span>
       </div>
-      <div class="tg-summary-row" title="Cheap / Discounted Shop Total">
+      <div class="tg-summary-row" id="tg-row-low" title="Cheap / Discounted Shop Total">
         <span>Low (Cheap) Total:</span>
         <strong id="tg-total-low">0cp</strong>
       </div>
-      <div class="tg-summary-row tg-norm-row" title="Standard Price Total">
-        <span>Normal Cost Total:</span>
+      <div class="tg-summary-row tg-highlight-total" id="tg-row-norm" title="Standard / Medium Price Total">
+        <span>Medium (Normal) Total:</span>
         <strong id="tg-total-norm">0cp</strong>
       </div>
-      <div class="tg-summary-row" title="Expensive / Marked-Up Shop Total">
+      <div class="tg-summary-row" id="tg-row-high" title="Expensive / Marked-Up Shop Total">
         <span>High (Expensive) Total:</span>
         <strong id="tg-total-high">0cp</strong>
       </div>
@@ -394,6 +445,16 @@
     maxCoin = e.target.value;
     localStorage.setItem(MAX_COIN_KEY, maxCoin);
     renderBasketUI();
+    updateAllDescriptionForms();
+  });
+
+  const priceRangeSelect = document.getElementById('tg-price-range-select');
+  priceRangeSelect.value = priceRange;
+  priceRangeSelect.addEventListener('change', (e) => {
+    priceRange = e.target.value;
+    localStorage.setItem(PRICE_RANGE_KEY, priceRange);
+    renderBasketUI();
+    updateAllDescriptionForms();
   });
 
   document.getElementById('tg-basket-header').addEventListener('click', () => {
@@ -421,14 +482,31 @@
       highCp += hSub;
       totalWeight += wSub;
 
-      return `${item.qty}x ${item.name} — Low: ${formatCopper(lSub)} | Norm: ${formatCopper(nSub)} | High: ${formatCopper(hSub)} | Wt: ${formatWeight(wSub)}`;
+      if (priceRange === 'low') {
+        return `${item.qty}x ${item.name} — ${formatCopper(lSub)} | Wt: ${formatWeight(wSub)}`;
+      } else if (priceRange === 'medium') {
+        return `${item.qty}x ${item.name} — ${formatCopper(nSub)} | Wt: ${formatWeight(wSub)}`;
+      } else if (priceRange === 'high') {
+        return `${item.qty}x ${item.name} — ${formatCopper(hSub)} | Wt: ${formatWeight(wSub)}`;
+      } else {
+        return `${item.qty}x ${item.name} — Low: ${formatCopper(lSub)} | Med: ${formatCopper(nSub)} | High: ${formatCopper(hSub)} | Wt: ${formatWeight(wSub)}`;
+      }
     });
 
     lines.push(`----------------------------------------`);
     lines.push(`Carry Weight: ${formatWeight(totalWeight)}`);
-    lines.push(`Low Total:    ${formatCopper(lowCp)}`);
-    lines.push(`Normal Total: ${formatCopper(normCp)}`);
-    lines.push(`High Total:   ${formatCopper(highCp)}`);
+
+    if (priceRange === 'low') {
+      lines.push(`Total (Low): ${formatCopper(lowCp)}`);
+    } else if (priceRange === 'medium') {
+      lines.push(`Total (Medium/Normal): ${formatCopper(normCp)}`);
+    } else if (priceRange === 'high') {
+      lines.push(`Total (High): ${formatCopper(highCp)}`);
+    } else {
+      lines.push(`Low Total:    ${formatCopper(lowCp)}`);
+      lines.push(`Medium Total: ${formatCopper(normCp)}`);
+      lines.push(`High Total:   ${formatCopper(highCp)}`);
+    }
 
     navigator.clipboard.writeText(lines.join('\n'));
 
@@ -444,6 +522,10 @@
     const lowEl = document.getElementById('tg-total-low');
     const normEl = document.getElementById('tg-total-norm');
     const highEl = document.getElementById('tg-total-high');
+
+    const rowLow = document.getElementById('tg-row-low');
+    const rowNorm = document.getElementById('tg-row-norm');
+    const rowHigh = document.getElementById('tg-row-high');
 
     body.innerHTML = '';
     let totalCount = 0;
@@ -467,14 +549,23 @@
         totalWeight += lineWt;
         totalCount += item.qty;
 
+        let subHtml = '';
+        if (priceRange === 'low') {
+          subHtml = `${formatCopper(item.prices.low)} each → <strong>${formatCopper(lineLow)}</strong>`;
+        } else if (priceRange === 'medium') {
+          subHtml = `${formatCopper(item.prices.normal)} each → <strong>${formatCopper(lineNorm)}</strong>`;
+        } else if (priceRange === 'high') {
+          subHtml = `${formatCopper(item.prices.high)} each → <strong>${formatCopper(lineHigh)}</strong>`;
+        } else {
+          subHtml = `L: ${formatCopper(lineLow)} | <strong>M: ${formatCopper(lineNorm)}</strong> | H: ${formatCopper(lineHigh)}`;
+        }
+
         const row = document.createElement('div');
         row.className = 'tg-basket-row';
         row.innerHTML = `
           <div class="tg-basket-item-info">
             <div><strong>${item.name}</strong> <span style="font-size:11px;color:#666;">(${formatWeight(lineWt)})</span></div>
-            <div class="tg-basket-item-sub">
-              L: ${formatCopper(lineLow)} | <strong>N: ${formatCopper(lineNorm)}</strong> | H: ${formatCopper(lineHigh)}
-            </div>
+            <div class="tg-basket-item-sub">${subHtml}</div>
           </div>
           <div class="tg-basket-item-actions">
             <input type="number" min="1" class="tg-qty-input" value="${item.qty}" />
@@ -494,6 +585,15 @@
       });
     }
 
+    // Update footer visibility & styling based on selected Price Range
+    rowLow.style.display = (priceRange === 'all' || priceRange === 'low') ? 'flex' : 'none';
+    rowNorm.style.display = (priceRange === 'all' || priceRange === 'medium') ? 'flex' : 'none';
+    rowHigh.style.display = (priceRange === 'all' || priceRange === 'high') ? 'flex' : 'none';
+
+    rowLow.classList.toggle('tg-highlight-total', priceRange === 'low');
+    rowNorm.classList.toggle('tg-highlight-total', priceRange === 'all' || priceRange === 'medium');
+    rowHigh.classList.toggle('tg-highlight-total', priceRange === 'high');
+
     countEl.textContent = totalCount;
     weightEl.textContent = formatWeight(totalWeight);
     lowEl.textContent = formatCopper(grandLowCp);
@@ -505,14 +605,16 @@
   function createDescriptionForm(itemName, pricesObj, weightLb) {
     const formBar = document.createElement('div');
     formBar.className = 'tg-desc-form';
+
+    // Store raw data on dataset so updateAllDescriptionForms() can dynamically re-render
+    formBar.dataset.name = itemName;
+    formBar.dataset.low = pricesObj.low;
+    formBar.dataset.normal = pricesObj.normal;
+    formBar.dataset.high = pricesObj.high;
+    formBar.dataset.weight = weightLb;
+
     formBar.innerHTML = `
-      <div class="tg-desc-meta">
-        <strong>${itemName}</strong> —
-        Low: ${formatCopper(pricesObj.low)} |
-        <strong>Norm: ${formatCopper(pricesObj.normal)}</strong> |
-        High: ${formatCopper(pricesObj.high)}
-        (${formatWeight(weightLb)})
-      </div>
+      <div class="tg-desc-meta">${buildDescMetaHtml(itemName, pricesObj, weightLb)}</div>
       <div class="tg-desc-controls">
         <label>Qty:</label>
         <input type="number" min="1" value="1" class="tg-qty-input" title="Quantity" />
@@ -566,11 +668,9 @@
     autoDescCounter += 1;
     const descId = `tg-auto-desc-${autoDescCounter}`;
 
-    // Derive matching rowNb class if row has rowN (e.g., row1 -> row1b)
     const rowClassMatch = (row.className || '').match(/\brow(\d+)\b/);
     const expandRowClass = rowClassMatch ? `row${rowClassMatch[1]}b` : '';
 
-    // Convert plain text in firstCell into a toggle link matching native items
     if (!firstCell.querySelector('a')) {
       firstCell.textContent = '';
       const newLink = document.createElement('a');
@@ -580,14 +680,12 @@
       firstCell.appendChild(newLink);
     }
 
-    // Create the expandable wrapper and inner .coldesc container
     const expandWrapper = document.createElement('div');
     expandWrapper.id = descId;
     expandWrapper.className = `${expandRowClass} descexpand tg-synthetic-desc`.trim();
     expandWrapper.style.display = 'none';
 
     const colDesc = document.createElement('div');
-    // Match native classes (.coldesc.dmtabind for main rows, .coldesc for sub-table rows)
     const isMainRow = row.classList.contains('contentrow') || firstCell.classList.contains('dmtabind');
     colDesc.className = isMainRow ? 'coldesc dmtabind' : 'coldesc';
 
@@ -598,7 +696,6 @@
   }
 
   function injectShopButtons() {
-    // Target both main shop rows (.flexrow.contentrow) and sub-item option rows (.desctable .flexrow)
     const flexRows = document.querySelectorAll('.flexrow:not(.flexheadrow)');
     flexRows.forEach((row) => {
       if (row.dataset.tgInjected) return;
