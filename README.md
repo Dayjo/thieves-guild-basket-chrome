@@ -1,3 +1,9 @@
+# Thieves Guild Basket
+
+The Thieves Guild Basket is a browser extension that helps you manage your purchases from the Thieves Guild D&D shop. It allows you to add items to a basket, track their cost and weight, and easily share your shopping summary with your GM. 
+
+Shops: https://www.thievesguild.cc/shops/
+
 ## Installation (Chrome Extension)
 To install the Thieves Guild Basket extension in your browser, follow these steps:
 

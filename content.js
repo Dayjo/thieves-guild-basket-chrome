@@ -1,8 +1,10 @@
 // ==UserScript==
-// @name         Thieves Guild D&D Shop Basket (v2.4 - Inside Expanding Description)
+// @name         Thieves Guild D&D Shop Basket
+// @namespace    https://dayjo.dev/
 // @author       Dayjo
-// @version      2.4
-// @description  Adds an 'Add to Basket' form inside the description panel with weight & Low/Normal/High totals
+// @version      2.6
+// @license      MIT
+// @description  Adds an 'Add to Basket' form inside the description panel with weight & Low/Normal/High totals.
 // @match        https://www.thievesguild.cc/shops*
 // @match        https://www.thievesguild.cc/equipment*
 // @match        https://thievesguild.cc/shops*
@@ -18,6 +20,7 @@
 
   let basket = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
   let maxCoin = localStorage.getItem(MAX_COIN_KEY) || 'gp';
+  let autoDescCounter = 0;
 
   // Convert a price string (e.g., "1 pp", "2 gp", "5 sp", "2 cp") into base Copper Pieces (cp)
   function parseToCopper(priceStr) {
@@ -136,7 +139,8 @@
       justify-content: space-between !important;
       flex-wrap: wrap !important;
       gap: 10px !important;
-      margin-top: 10px !important;
+      margin-top: 0 !important;
+      margin-bottom: 12px !important;
       padding: 8px 12px !important;
       background: #efe7dc !important;
       border: 1px solid #c8b7a6 !important;
@@ -144,6 +148,9 @@
       border-radius: 4px !important;
       font-family: Georgia, serif !important;
       color: #2c1e16 !important;
+    }
+    .tg-synthetic-desc .tg-desc-form {
+      margin-bottom: 4px !important;
     }
     .tg-desc-meta {
       font-size: 12px !important;
@@ -494,7 +501,7 @@
     highEl.textContent = formatCopper(grandHighCp);
   }
 
-  // Create the Add-to-Basket form bar for inside the .coldesc.dmtabind panel
+  // Create the Add-to-Basket form bar for inside the .coldesc panel
   function createDescriptionForm(itemName, pricesObj, weightLb) {
     const formBar = document.createElement('div');
     formBar.className = 'tg-desc-form';
@@ -530,9 +537,9 @@
     return formBar;
   }
 
-  // Find the matching .coldesc.dmtabind element for a given .flexrow.contentrow
-  function findDescriptionElement(row) {
-    // 1. Check onclick="toggle_visibility('desc55')" on the item link
+  // Find or create the matching .coldesc element for any .flexrow (including mundane items with no description)
+  function findOrCreateDescriptionElement(row, firstCell, itemName) {
+    // 1. Check existing onclick="toggle_visibility('...')" on the item link
     const link = row.querySelector('a[onclick*="toggle_visibility"]');
     if (link) {
       const onclickAttr = link.getAttribute('onclick') || '';
@@ -540,37 +547,69 @@
       if (idMatch && idMatch[1]) {
         const byId = document.getElementById(idMatch[1]);
         if (byId) {
-          // If #desc55 itself is .coldesc.dmtabind or wraps it
           if (byId.classList.contains('coldesc')) return byId;
-          const innerDesc = byId.querySelector('.coldesc.dmtabind, .coldesc');
-          return innerDesc || byId;
+          const directDesc = byId.querySelector(':scope > .coldesc') || byId.querySelector('.coldesc');
+          return directDesc || byId;
         }
       }
     }
 
-    // 2. Fallback: look at the immediate next sibling or inside it
+    // 2. Check if the immediate next sibling is already an expandable description row (.descexpand or .coldesc)
     const nextSib = row.nextElementSibling;
-    if (nextSib) {
+    if (nextSib && (nextSib.classList.contains('descexpand') || nextSib.classList.contains('coldesc'))) {
       if (nextSib.classList.contains('coldesc')) return nextSib;
-      const innerDesc = nextSib.querySelector('.coldesc.dmtabind, .coldesc');
+      const innerDesc = nextSib.querySelector(':scope > .coldesc') || nextSib.querySelector('.coldesc');
       if (innerDesc) return innerDesc;
     }
 
-    return null;
+    // 3. Mundane item with no description: create the link and synthetic description row
+    autoDescCounter += 1;
+    const descId = `tg-auto-desc-${autoDescCounter}`;
+
+    // Derive matching rowNb class if row has rowN (e.g., row1 -> row1b)
+    const rowClassMatch = (row.className || '').match(/\brow(\d+)\b/);
+    const expandRowClass = rowClassMatch ? `row${rowClassMatch[1]}b` : '';
+
+    // Convert plain text in firstCell into a toggle link matching native items
+    if (!firstCell.querySelector('a')) {
+      firstCell.textContent = '';
+      const newLink = document.createElement('a');
+      newLink.href = 'javascript:void(0)';
+      newLink.setAttribute('onclick', `toggle_visibility('${descId}');`);
+      newLink.textContent = itemName;
+      firstCell.appendChild(newLink);
+    }
+
+    // Create the expandable wrapper and inner .coldesc container
+    const expandWrapper = document.createElement('div');
+    expandWrapper.id = descId;
+    expandWrapper.className = `${expandRowClass} descexpand tg-synthetic-desc`.trim();
+    expandWrapper.style.display = 'none';
+
+    const colDesc = document.createElement('div');
+    // Match native classes (.coldesc.dmtabind for main rows, .coldesc for sub-table rows)
+    const isMainRow = row.classList.contains('contentrow') || firstCell.classList.contains('dmtabind');
+    colDesc.className = isMainRow ? 'coldesc dmtabind' : 'coldesc';
+
+    expandWrapper.appendChild(colDesc);
+    row.insertAdjacentElement('afterend', expandWrapper);
+
+    return colDesc;
   }
 
   function injectShopButtons() {
-    const flexRows = document.querySelectorAll('.flexrow.contentrow');
+    // Target both main shop rows (.flexrow.contentrow) and sub-item option rows (.desctable .flexrow)
+    const flexRows = document.querySelectorAll('.flexrow:not(.flexheadrow)');
     flexRows.forEach((row) => {
       if (row.dataset.tgInjected) return;
 
-      const firstCell = row.querySelector('.firstcell, .col1');
-      const costCell = row.querySelector('.colcost, .col2');
+      const firstCell = row.querySelector(':scope > .firstcell, :scope > .col1');
+      const costCell = row.querySelector(':scope > .colcost, :scope > .col2');
       if (!firstCell || !costCell) return;
 
-      const lowCell = row.querySelector('.colcostlo, .col3');
-      const highCell = row.querySelector('.colcosthi, .col4');
-      const weightCell = row.querySelector('.colweight, .col5');
+      const lowCell = row.querySelector(':scope > .colcostlo, :scope > .col3');
+      const highCell = row.querySelector(':scope > .colcosthi, :scope > .col4');
+      const weightCell = row.querySelector(':scope > .colweight, :scope > .col5');
 
       const nameAnchor = firstCell.querySelector('a');
       const itemName = (nameAnchor ? nameAnchor.textContent : firstCell.textContent).trim();
@@ -589,10 +628,10 @@
         high: highCp || normalCp
       };
 
-      const descEl = findDescriptionElement(row);
-      if (descEl) {
+      const descEl = findOrCreateDescriptionElement(row, firstCell, itemName);
+      if (descEl && !descEl.querySelector(':scope > .tg-desc-form')) {
         row.dataset.tgInjected = 'true';
-        descEl.appendChild(createDescriptionForm(itemName, pricesObj, weightLb));
+        descEl.prepend(createDescriptionForm(itemName, pricesObj, weightLb));
       }
     });
   }

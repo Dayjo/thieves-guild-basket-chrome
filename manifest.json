@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Thieves Guild Shop Basket",
-  "version": "1.0",
+  "version": "2.6",
   "description": "Adds an interactive shopping basket with D&D currency conversion (cp/sp/gp) to Thieves Guild shops.",
   "content_scripts": [
     {
