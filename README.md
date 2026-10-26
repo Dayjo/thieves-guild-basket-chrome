@@ -1,4 +1,4 @@
-## Installation
+## Installation (Chrome Extension)
 To install the Thieves Guild Basket extension in your browser, follow these steps:
 
 1. Download or Clone the Thieves Guild Basket extension repository to your local machine.
@@ -7,8 +7,12 @@ To install the Thieves Guild Basket extension in your browser, follow these step
 4. Click "Load unpacked" and select the directory containing the Thieves Guild Basket extension.
 5. The extension should now be loaded and active in your browser.
 
-## Alternative Installation
-If you use Tampermonkey or a similar userscript manager, you can install the Thieves Guild Basket extension as a userscript:
+## Installation (Tampermonkey et al) 
+If you use Tampermonkey or a similar userscript manager, you can install the Thieves Guild Basket extension as a userscript via GreasyFork: 
+
+https://greasyfork.org/en/scripts/602282-thieves-guild-d-d-shop-basket
+
+Alternatively you can install it manually.
 
 1. Open your userscript manager and create a new script.
 2. Copy the contents of the Thieves Guild Basket extension's `content.js` file into the new script.
