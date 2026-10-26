@@ -21,3 +21,16 @@ If you use Tampermonkey or a similar userscript manager, you can install the Thi
 3. It should show the cost, plus the additional weight of the items in your basket.
 
 <img width="1322" height="547" alt="Zight 2026-10-25 at 23 59 47" src="https://github.com/user-attachments/assets/ba248f89-5a76-4b97-a843-8c90dafa0d7f" />
+
+You can copy out the summary to send to your GM e.g.
+
+```text
+1x Flask or Tankard — Low: 2cp | Norm: 2cp | High: 4cp | Wt: 1 lb.
+10x Rations (1 day) — Low: 4gp | Norm: 5gp | High: 10gp | Wt: 20 lb.
+1x Waterskin (full) — Low: 2sp | Norm: 2sp | High: 4sp | Wt: 5 lb.
+----------------------------------------
+Carry Weight: 26 lb.
+Low Total:    4gp + 2sp + 2cp
+Normal Total: 5gp + 2sp + 2cp
+High Total:   10gp + 4sp + 4cp
+```
