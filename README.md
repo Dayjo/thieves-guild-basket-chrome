@@ -19,3 +19,5 @@ If you use Tampermonkey or a similar userscript manager, you can install the Thi
 1. Once installed, reload a thieves guild shop, when you click on an item, the Thieves Guild Basket extension will allow you to add it to your basket. 
 2. The basket will appear on the page, showing the items you have added. You can view, remove, or adjust quantities of items directly from the basket.
 3. It should show the cost, plus the additional weight of the items in your basket.
+
+<img width="1322" height="547" alt="Zight 2026-10-25 at 23 59 47" src="https://github.com/user-attachments/assets/ba248f89-5a76-4b97-a843-8c90dafa0d7f" />
